@@ -27,7 +27,7 @@ class LaneFinder:
         ym_per_pix = 10/720.
         xm_per_pix = 4/380.
 
-        tracker = Tracker(window_w, window_h, margin=25, ym=ym_per_pix, xm=xm_per_pix, smooth_factor=15)
+        tracker = Tracker(window_w, window_h, margin=25, ym=ym_per_pix, xm=xm_per_pix, smooth_factor=30)
         window_centroids = tracker.find_window_centroids(thresholded_warped)
         # plt.imshow(warped)
         # plt.show()
@@ -110,8 +110,8 @@ class LaneFinder:
 if __name__ == "__main__":
 
     lane_finder = LaneFinder()
-    images = glob.glob("./test_images/test*.jpg")
-
+    # images = glob.glob("./test_images/test*.jpg")
+    images = glob.glob("harder_frame.png")
     for fname in images:
         img = cv2.imread(fname)
         draw_image = lane_finder.process_image(img)
