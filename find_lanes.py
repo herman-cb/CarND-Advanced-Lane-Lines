@@ -20,53 +20,37 @@ class LaneFinder:
         preProcessImage[(gradx == 1) & (grady == 1) | (c_binary == 1)] = 255
         # Perspective transform area
         img_size = (img.shape[1], img.shape[0])
-        bot_width = 0.76
-        mid_width = 0.08
-        height_pct = 0.62
-        bottom_trim = 0.935
-        src = np.float32([[img.shape[1] * (0.5 - mid_width / 2), img.shape[0] * height_pct],
-                          [img.shape[1] * (0.5 + mid_width / 2), img.shape[0] * height_pct],
-                          [img.shape[1] * (0.5 + bot_width / 2), img.shape[0] - bottom_trim],
-                          [img.shape[1] * (0.5 - bot_width / 2), img.shape[0] - bottom_trim]])
-        offset = img_size[0] * 0.25
-        # offset = 0
-        dst = np.float32([[offset, 0],
-                          [img_size[0] - offset, 0],
-                          [img_size[0] - offset, img_size[1]],
-                          [offset, img_size[1]]])
-        #     print("src = {}".format(src))
-        #     print("dst = {}".format(dst))
-        M = cv2.getPerspectiveTransform(src, dst)
-        Minv = cv2.getPerspectiveTransform(dst, src)
-        warped = cv2.warpPerspective(preProcessImage, M, img_size, flags=cv2.INTER_LINEAR)
+        thresholded_warped, Minv = warp_image(preProcessImage)
 
         window_w = 25
         window_h = 80
+        ym_per_pix = 10/720.
+        xm_per_pix = 4/380.
 
-        tracker = Tracker(window_w, window_h, margin=25, ym=10 / 720., xm=4/384., smooth_factor=15)
-
-        xm_per_pix = tracker.xm_per_pixel
-        ym_per_pix = tracker.ym_per_pixel
-        window_centroids = tracker.find_window_centroids(warped)
-        l_points = np.zeros_like(warped)
-        r_points = np.zeros_like(warped)
+        tracker = Tracker(window_w, window_h, margin=25, ym=ym_per_pix, xm=xm_per_pix, smooth_factor=15)
+        window_centroids = tracker.find_window_centroids(thresholded_warped)
+        # plt.imshow(warped)
+        # plt.show()
+        l_points = np.zeros_like(thresholded_warped)
+        r_points = np.zeros_like(thresholded_warped)
         leftx = []
         rightx = []
         for level in range(0, len(window_centroids)):
             leftx.append(window_centroids[level][0])
             rightx.append(window_centroids[level][1])
-            l_mask = window_mask(window_w, window_h, warped, window_centroids[level][0], level)
-            r_mask = window_mask(window_w, window_h, warped, window_centroids[level][1], level)
+            l_mask = window_mask(window_w, window_h, thresholded_warped, window_centroids[level][0], level)
+            r_mask = window_mask(window_w, window_h, thresholded_warped, window_centroids[level][1], level)
 
             l_points[(l_points == 255) | (l_mask == 1)] = 255
             r_points[(r_points == 255) | (r_mask == 1)] = 255
         template = np.array(r_points + l_points, np.uint8)
         zero_channel = np.zeros_like(template)
         template = np.array(cv2.merge((zero_channel, template, zero_channel)), np.uint8)
-        warpage = np.array(cv2.merge((warped, warped, warped)), np.uint8)
+
+        warpage = np.array(cv2.merge((thresholded_warped, thresholded_warped, thresholded_warped)), np.uint8)
         result = cv2.addWeighted(warpage, 1, template, 0.5, 0.0)
-        yvals = range(0, warped.shape[0])
-        res_yvals = np.arange(warped.shape[0] - (window_h / 2), 0, -window_h)
+        yvals = range(0, thresholded_warped.shape[0])
+        res_yvals = np.arange(thresholded_warped.shape[0] - (window_h / 2), 0, -window_h)
         left_fit = np.polyfit(res_yvals, leftx, 2)
         # left_fitx = np.poly1d(res_yvals)
         left_fitx = left_fit[0] * yvals * yvals + left_fit[1] * yvals + left_fit[2]
@@ -97,7 +81,7 @@ class LaneFinder:
         # plt.show()
         result = cv2.addWeighted(img, 1.0, road_warped, 1.0, 0.0)
         camera_center = (left_fitx[-1] + right_fitx[-1]) / 2
-        center_diff = (camera_center - warped.shape[1] / 2) * xm_per_pix
+        center_diff = (camera_center - thresholded_warped.shape[1] / 2) * xm_per_pix
         side_pos = 'left'
         if center_diff <= 0:
             side_pos = 'right'

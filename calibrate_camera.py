@@ -40,7 +40,7 @@ class CameraCalibration:
                 cv2.findChessboardCorners(gray, (self.nx, self.ny), None)
 
             if ret:
-                self.obj_points.append(self.objp)
+                self.obj_points.append(self.objp)  # The same object points apply to all images
                 self.img_points.append(corners)
                 self.imgs.append((fname,
                                   "output_images/"+fname.split("/")[-1].split(".")[0]+"with_corners.jpg",
@@ -58,3 +58,7 @@ if __name__ == "__main__":
     camera_calibration.calibrate(glob.glob("./camera_cal/calibration*.jpg"))
     camera_calibration.draw_chessboard_corners_for_all_images()
     camera_calibration.save_to_file("camera_cal.pkl")
+
+    img = cv2.imread("./camera_cal/calibration1.jpg")
+    undistorted_img = cv2.undistort(img, camera_calibration.mtx, camera_calibration.dist)
+    cv2.imwrite("./output_images/calibration1_undistorted.jpg", undistorted_img)
