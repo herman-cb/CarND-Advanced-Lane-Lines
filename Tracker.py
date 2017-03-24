@@ -40,6 +40,12 @@ class Tracker:
             r_center = np.argmax(conv_signal[r_min_index:r_max_index]) + r_min_index - offset
 
             window_centroids.append((l_center, r_center))
-        self.recent_centers.append(window_centroids)
+        if 500 < np.mean([r-l for l,r in window_centroids]) < 600:
+            self.recent_centers.append(window_centroids)
 
         return np.average(self.recent_centers[-self.smooth_factor:], axis=0)
+
+    def get_all_statistics(self):
+        print("[(r-l)for l,r in self.recent_centers] = {}".format(self.recent_centers))
+        print("average lane width = {}, std".format(np.mean([(r-l)for l,r in np.concatenate(self.recent_centers)])))
+        return self.recent_centers

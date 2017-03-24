@@ -18,7 +18,7 @@ class LaneFinder:
                                margin=25,
                                ym=self.ym_per_pix,
                                xm=self.xm_per_pix,
-                               smooth_factor=30)
+                               smooth_factor=10)
 
 
     def process_image(self, img):
