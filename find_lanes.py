@@ -11,8 +11,8 @@ class LaneFinder:
         self.dist = cc.dist
         self.window_w = 25
         self.window_h = 80
-        self.ym_per_pix = 10/720.
-        self.xm_per_pix = 4/380.
+        self.ym_per_pix = 30/720.
+        self.xm_per_pix = 3.7/640.
         self.tracker = Tracker(self.window_w,
                                self.window_h,
                                margin=25,
@@ -118,7 +118,8 @@ if __name__ == "__main__":
 
     lane_finder = LaneFinder()
     # images = glob.glob("./test_images/test*.jpg")
-    images = glob.glob("harder_frame.png")
+    # images = glob.glob("./test_images/test1.jpg")
+    images = glob.glob("./harder_frame.png")
     for fname in images:
         img = cv2.imread(fname)
         draw_image = lane_finder.process_image(img)

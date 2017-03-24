@@ -44,8 +44,8 @@ def window_mask(w, h, img_ref, center, level):
 def warp_image(img):
     img_size = (img.shape[1], img.shape[0])
     bot_width = 0.76
-    mid_width = 0.08
-    height_pct = 0.62
+    mid_width = 0.16
+    height_pct = 0.66     # higher percentage means less length of the road detected
     bottom_trim = 0.935
     src = np.float32([[img.shape[1] * (0.5 - mid_width / 2), img.shape[0] * height_pct],
                       [img.shape[1] * (0.5 + mid_width / 2), img.shape[0] * height_pct],
@@ -66,20 +66,23 @@ def warp_image(img):
 
 
 if __name__ == "__main__":
-    img = cv2.imread("./harder_frame.png")
-    camera_calibration = pickle.load(open("camera_cal.pkl", "rb"))
-    undistorted_img = cv2.undistort(img, camera_calibration.mtx, camera_calibration.dist)
-    cv2.imwrite("./output_images/harder_frame_undistorted.jpg", undistorted_img)
+    imgs = glob.glob("./test_images/test*.jpg")
+    for img_path in imgs:
+        img = cv2.imread(img_path)
+        camera_calibration = pickle.load(open("camera_cal.pkl", "rb"))
+        undistorted_img = cv2.undistort(img, camera_calibration.mtx, camera_calibration.dist)
+        ifname = img_path.split("/")[-1].split(".")[0]
+        cv2.imwrite("./output_images/"+ifname+"_undistorted.jpg", undistorted_img)
 
-    # Threshold
-    binary_img = np.zeros_like(undistorted_img[:, :, 0])
-    gradx = abs_sobel_thresh(undistorted_img, orient='x', thresh=(12, 255))
-    grady = abs_sobel_thresh(undistorted_img, orient='y', thresh=(25, 255))
-    c_binary = hls_thresh(undistorted_img, sthresh=(100, 255), vthresh=(50, 255))
-    binary_img[(gradx == 1) & (grady == 1) | (c_binary == 1)] = 255
-    cv2.imwrite("./output_images/harder_frame_binarized.jpg", binary_img)
+        # Threshold
+        binary_img = np.zeros_like(undistorted_img[:, :, 0])
+        gradx = abs_sobel_thresh(undistorted_img, orient='x', thresh=(12, 255))
+        grady = abs_sobel_thresh(undistorted_img, orient='y', thresh=(25, 255))
+        c_binary = hls_thresh(undistorted_img, sthresh=(100, 255), vthresh=(50, 255))
+        binary_img[(gradx == 1) & (grady == 1) | (c_binary == 1)] = 255
+        cv2.imwrite("./output_images/"+ifname+"_undistorted_binarized.jpg", binary_img)
 
-    #Warp
-    warped_image, Minv = warp_image(undistorted_img)
-    cv2.imwrite("./output_images/test1_warped.jpg", warped_image)
+        #Warp
+        warped_image, Minv = warp_image(undistorted_img)
+        cv2.imwrite("./output_images/"+ifname+"_warped.jpg", warped_image)
 
