@@ -9,6 +9,16 @@ class LaneFinder:
         cc = pickle.load(open("camera_cal.pkl", "rb"))
         self.mtx = cc.mtx
         self.dist = cc.dist
+        self.window_w = 25
+        self.window_h = 80
+        self.ym_per_pix = 10/720.
+        self.xm_per_pix = 4/380.
+        self.tracker = Tracker(self.window_w,
+                               self.window_h,
+                               margin=25,
+                               ym=self.ym_per_pix,
+                               xm=self.xm_per_pix,
+                               smooth_factor=30)
 
 
     def process_image(self, img):
@@ -22,13 +32,10 @@ class LaneFinder:
         img_size = (img.shape[1], img.shape[0])
         thresholded_warped, Minv = warp_image(preProcessImage)
 
-        window_w = 25
-        window_h = 80
-        ym_per_pix = 10/720.
-        xm_per_pix = 4/380.
 
-        tracker = Tracker(window_w, window_h, margin=25, ym=ym_per_pix, xm=xm_per_pix, smooth_factor=30)
-        window_centroids = tracker.find_window_centroids(thresholded_warped)
+
+
+        window_centroids = self.tracker.find_window_centroids(thresholded_warped)
         # plt.imshow(warped)
         # plt.show()
         l_points = np.zeros_like(thresholded_warped)
@@ -38,8 +45,8 @@ class LaneFinder:
         for level in range(0, len(window_centroids)):
             leftx.append(window_centroids[level][0])
             rightx.append(window_centroids[level][1])
-            l_mask = window_mask(window_w, window_h, thresholded_warped, window_centroids[level][0], level)
-            r_mask = window_mask(window_w, window_h, thresholded_warped, window_centroids[level][1], level)
+            l_mask = window_mask(self.window_w, self.window_h, thresholded_warped, window_centroids[level][0], level)
+            r_mask = window_mask(self.window_w, self.window_h, thresholded_warped, window_centroids[level][1], level)
 
             l_points[(l_points == 255) | (l_mask == 1)] = 255
             r_points[(r_points == 255) | (r_mask == 1)] = 255
@@ -50,7 +57,7 @@ class LaneFinder:
         warpage = np.array(cv2.merge((thresholded_warped, thresholded_warped, thresholded_warped)), np.uint8)
         result = cv2.addWeighted(warpage, 1, template, 0.5, 0.0)
         yvals = range(0, thresholded_warped.shape[0])
-        res_yvals = np.arange(thresholded_warped.shape[0] - (window_h / 2), 0, -window_h)
+        res_yvals = np.arange(thresholded_warped.shape[0] - (self.window_h / 2), 0, -self.window_h)
         left_fit = np.polyfit(res_yvals, leftx, 2)
         # left_fitx = np.poly1d(res_yvals)
         left_fitx = left_fit[0] * yvals * yvals + left_fit[1] * yvals + left_fit[2]
@@ -60,12 +67,12 @@ class LaneFinder:
         right_fitx = right_fit[0] * yvals * yvals + right_fit[1] * yvals + right_fit[2]
         right_fitx = np.array(right_fitx, np.int32)
         # The polygon corner points representing the left and right lane polygons (for plotting)
-        left_lane = np.array(list(zip(np.concatenate((left_fitx - window_w / 2, left_fitx[::-1] + window_w / 2), axis=0),
+        left_lane = np.array(list(zip(np.concatenate((left_fitx - self.window_w / 2, left_fitx[::-1] + self.window_w / 2), axis=0),
                                       np.concatenate((yvals, yvals[::-1]), axis=0))), np.int32)
-        right_lane = np.array(list(zip(np.concatenate((right_fitx - window_w / 2, right_fitx[::-1] + window_w / 2), axis=0),
+        right_lane = np.array(list(zip(np.concatenate((right_fitx - self.window_w / 2, right_fitx[::-1] + self.window_w / 2), axis=0),
                                        np.concatenate((yvals, yvals[::-1]), axis=0))), np.int32)
         middle_marker = np.array(
-            list(zip(np.concatenate((left_fitx + window_w / 2, right_fitx[::-1] - window_w / 2), axis=0),
+            list(zip(np.concatenate((left_fitx + self.window_w / 2, right_fitx[::-1] - self.window_w / 2), axis=0),
                      np.concatenate((yvals, yvals[::-1]), axis=0))), np.int32)
         road = np.zeros_like(img)
         road_bkg = np.zeros_like(img)
@@ -81,14 +88,14 @@ class LaneFinder:
         # plt.show()
         result = cv2.addWeighted(img, 1.0, road_warped, 1.0, 0.0)
         camera_center = (left_fitx[-1] + right_fitx[-1]) / 2
-        center_diff = (camera_center - thresholded_warped.shape[1] / 2) * xm_per_pix
+        center_diff = (camera_center - thresholded_warped.shape[1] / 2) * self.xm_per_pix
         side_pos = 'left'
         if center_diff <= 0:
             side_pos = 'right'
-        curve_fit_cr = np.polyfit(np.array(res_yvals, np.float32) * ym_per_pix,
-                                  np.array(leftx, np.float32) * xm_per_pix, 2)
+        curve_fit_cr = np.polyfit(np.array(res_yvals, np.float32) * self.ym_per_pix,
+                                  np.array(leftx, np.float32) * self.xm_per_pix, 2)
         curverad = ((1 + \
-                     (2 * curve_fit_cr[0] * yvals[-1] * ym_per_pix + curve_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
+                     (2 * curve_fit_cr[0] * yvals[-1] * self.ym_per_pix + curve_fit_cr[1]) ** 2) ** 1.5) / np.absolute(
             2 * curve_fit_cr[0])
         #     print("curverad = {}".format(curverad))
         cv2.putText(result, 'Radius of curvature {} m'.format(round(curverad, 3)),
